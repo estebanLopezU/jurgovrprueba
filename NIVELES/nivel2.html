@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jurgo VR - Nivel 2</title>
+    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+    <style>
+        .ui { position: fixed; z-index: 999; font-family: Arial, sans-serif; }
+        .hud { top: 20px; left: 20px; background: rgba(0,0,0,0.9); color: #00ffff; padding: 15px 20px; border-radius: 10px; font-size: 20px; border: 2px solid #00ffff; box-shadow: 0 0 15px rgba(0,255,255,0.5); text-shadow: 0 0 10px #00ffff; }
+        .level-indicator { top: 20px; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg, #ffcc00, #ff9900); color: #000; padding: 10px 25px; border-radius: 20px; font-size: 18px; font-weight: bold; }
+        .brujula { top: 80px; left: 50%; transform: translateX(-50%); width: 80px; height: 80px; background: rgba(0,0,0,0.9); border-radius: 50%; border: 3px solid #ff00ff; position: relative; box-shadow: 0 0 20px rgba(255,0,255,0.5); }
+        .brujula-inner { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+        .brujula span { position: absolute; font-weight: bold; color: white; font-size: 10px; }
+        .brujula .n { top: 6px; left: 50%; transform: translateX(-50%); color: #FF6B6B; }
+        .brujula .s { bottom: 6px; left: 50%; transform: translateX(-50%); }
+        .brujula .e { right: 8px; top: 50%; transform: translateY(-50%); }
+        .brujula .w { left: 8px; top: 50%; transform: translateY(-50%); }
+        .dir-label { position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); color: white; padding: 2px 8px; border-radius: 5px; font-size: 10px; white-space: nowrap; }
+        .controls { bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); color: white; padding: 15px 25px; border-radius: 10px; font-size: 14px; }
+        .win { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 40px 60px; border-radius: 20px; text-align: center; display: none; z-index: 1000; }
+        .win h2 { font-size: 32px; margin-bottom: 10px; }
+        .win a { color: #00ffff; text-decoration: none; font-size: 20px; }
+        .win a:hover { text-decoration: underline; }
+        
+        .timer { position: fixed; top: 20px; right: 20px; background: rgba(0,0,0,0.9); color: #00ffff; padding: 15px 20px; border-radius: 10px; font-size: 24px; font-family: Arial, sans-serif; z-index: 999; border: 2px solid #00ffff; box-shadow: 0 0 15px rgba(0,255,255,0.5); text-shadow: 0 0 10px #00ffff; }
+        .timer.warning { border-color: #ff00ff; color: #ff00ff; box-shadow: 0 0 20px rgba(255,0,255,0.7); text-shadow: 0 0 15px #ff00ff; animation: pulse 1s infinite; }
+        .timer.critical { border-color: #ff0040; color: #ff0040; box-shadow: 0 0 25px rgba(255,0,64,0.9); text-shadow: 0 0 20px #ff0040; animation: pulse 0.5s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        
+        .lose { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: linear-gradient(135deg, #ff0040, #800020); color: white; padding: 40px 60px; border-radius: 20px; text-align: center; display: none; z-index: 1000; border: 3px solid #ff0040; box-shadow: 0 0 30px rgba(255,0,64,0.7); }
+        .lose h2 { font-size: 32px; margin-bottom: 10px; text-shadow: 0 0 15px #ff0040; }
+        .lose a { color: #00ffff; text-decoration: none; font-size: 18px; }
+        
+        .back-btn { position: fixed; top: 20px; left: 200px; z-index: 999; }
+        .back-btn a { background: rgba(0,0,0,0.9); color: #ff00ff; padding: 10px 20px; border-radius: 10px; text-decoration: none; border: 2px solid #ff00ff; font-family: Arial, sans-serif; font-weight: bold; }
+        .back-btn a:hover { background: #ff00ff; color: #000; }
+        
+        .mobile-controls { position: fixed; bottom: 30px; left: 30px; z-index: 999; display: none; }
+        .joystick-container { position: relative; width: 150px; height: 150px; }
+        .joystick-base { width: 150px; height: 150px; background: rgba(0,0,0,0.8); border-radius: 50%; border: 3px solid #00ffff; position: relative; box-shadow: 0 0 20px rgba(0,255,255,0.5), inset 0 0 30px rgba(0,255,255,0.1); }
+        .joystick-stick { position: absolute; width: 60px; height: 60px; background: radial-gradient(circle, #00ffff, #0080ff); border-radius: 50%; top: 50%; left: 50%; transform: translate(-50%, -50%); border: 2px solid #00ffff; box-shadow: 0 0 15px rgba(0,255,255,0.8); }
+        .joystick-label { text-align: center; color: #00ffff; font-size: 12px; margin-top: 10px; text-shadow: 0 0 10px #00ffff; }
+        
+        .action-buttons { position: fixed; bottom: 30px; right: 30px; z-index: 999; display: none; }
+        .action-btn { width: 70px; height: 70px; border-radius: 50%; border: 2px solid; font-size: 14px; font-weight: bold; color: white; margin: 10px; cursor: pointer; transition: transform 0.1s, box-shadow 0.1s; }
+        .action-btn:active { transform: scale(0.9); }
+        .btn-jump { background: linear-gradient(135deg, #00ffff, #0080ff); border-color: #00ffff; box-shadow: 0 0 15px rgba(0,255,255,0.5); }
+        .btn-run { background: linear-gradient(135deg, #ff00ff, #8000ff); border-color: #ff00ff; box-shadow: 0 0 15px rgba(255,0,255,0.5); }
+        
+        @media (max-width: 768px) {
+            .mobile-controls, .action-buttons { display: block; }
+            .controls { display: none; }
+        }
+        @media (pointer: coarse) {
+            .mobile-controls, .action-buttons { display: block; }
+            .controls { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="ui hud">🪙 <span id="coins">0</span> / <span id="total">10</span></div>
+    
+    <div class="ui level-indicator">⭐ NIVEL 2 - MEDIO ⭐</div>
+    
+    <div class="back-btn"><a href="../index.html">🏠 Menú</a></div>
+    
+    <div class="ui brujula">
+        <div class="brujula-inner" id="brujulaInner">
+            <span class="n">N</span>
+            <span class="s">S</span>
+            <span class="e">E</span>
+            <span class="w">O</span>
+        </div>
+        <div class="dir-label" id="dirLabel">Norte</div>
+    </div>
+    
+    <div class="ui controls">
+        W/S = Adelante/Atrás | A/D = Izq/Der | SHIFT = Correr | ESPACIO = Saltar
+    </div>
+    
+    <div class="ui timer" id="timer">⏱️ <span id="timerDisplay">4:30</span></div>
+    
+    <div class="win" id="win">
+        <h2>🎉 ¡NIVEL 2 COMPLETADO! 🎉</h2>
+        <p>¡Excelente trabajo!</p>
+        <p><a href="nivel3.html">➡️ Ir al Nivel 3</a></p>
+    </div>
+    
+    <div class="lose" id="lose">
+        <h2>⏰ ¡TIEMPO AGOTADO! ⏰</h2>
+        <p>No encontraste todas las monedas a tiempo.</p>
+        <p><a href="nivel2.html">🔄 Reintentar Nivel 2</a></p>
+    </div>
+    
+    <div class="mobile-controls" id="mobileControls">
+        <div class="joystick-container">
+            <div class="joystick-base" id="joystickBase">
+                <div class="joystick-stick" id="joystickStick"></div>
+            </div>
+            <div class="joystick-label">Mover</div>
+        </div>
+    </div>
+    
+    <div class="action-buttons" id="actionButtons">
+        <button class="action-btn btn-run" id="btnRun">🏃</button>
+        <button class="action-btn btn-jump" id="btnJump">⬆️</button>
+    </div>
+
+    <a-scene>
+        <a-sky color="#0a0a1a"></a-sky>
+        
+        <a-plane position="0 0 0" rotation="-90 0 0" width="68" height="68" color="#1a1a2e" material="metalness: 0.8; roughness: 0.2"></a-plane>
+        <a-plane position="0 0.01 0" rotation="-90 0 0" width="68" height="68" color="#0f0f23" opacity="0.5" material="wireframe: true"></a-plane>
+        
+        <a-light type="ambient" color="#4a00e0" intensity="0.3"></a-light>
+        <a-light type="directional" position="5 10 5" color="#ffcc00" intensity="0.4"></a-light>
+        <a-light type="point" position="0 5 0" color="#00ffff" intensity="0.5" distance="35"></a-light>
+        <a-light type="point" position="-25 3 -25" color="#ffcc00" intensity="0.4" distance="30"></a-light>
+        <a-light type="point" position="25 3 25" color="#ff9900" intensity="0.4" distance="30"></a-light>
+        
+        <a-entity id="player" position="-20 1.6 -20">
+            <a-camera id="camera" look-controls wasd-controls="enabled: false">
+                <a-cursor color="#FFD700"></a-cursor>
+            </a-camera>
+        </a-entity>
+        
+        <a-entity id="walls"></a-entity>
+        <a-entity id="coinsEntity"></a-entity>
+        
+        <a-entity id="guideArrow" visible="false">
+            <a-cone position="0 3 0" radius-bottom="0.3" radius-top="0" height="0.8" color="#ffcc00" material="emissive: #ffcc00; emissiveIntensity: 1" rotation="0 0 0"></a-cone>
+            <a-cone position="0 2.5 0" radius-bottom="0.2" radius-top="0.4" height="0.4" color="#ff9900" material="emissive: #ff9900; emissiveIntensity: 1" rotation="180 0 0"></a-cone>
+            <a-torus position="0 2.2 0" radius="0.4" radius-tubular="0.02" color="#ffcc00" material="emissive: #ffcc00; emissiveIntensity: 0.8" rotation="90 0 0"></a-torus>
+        </a-entity>
+    </a-scene>
+
+    <script>
+        // ===== CONFIG NIVEL 2 =====
+        const TILE = 4;
+        const GRID = 13;
+        const CENTER = (GRID * TILE) / 2 - TILE / 2;
+        const LEVEL_TIME = 4 * 60 + 30; // 4:30 minutos
+        
+        // Laberinto Nivel 2 - Medio (más grande y complejo)
+        const MAP = [
+            [1,1,1,1,1,1,1,1,1,1,1,1,1],
+            [1,0,0,0,1,0,0,0,0,0,1,0,1],
+            [1,0,1,0,1,0,1,1,1,0,1,0,1],
+            [1,0,1,0,0,0,0,0,1,0,0,0,1],
+            [1,0,1,1,1,1,1,0,1,1,1,0,1],
+            [1,0,0,0,0,0,1,0,0,0,0,0,1],
+            [1,1,1,1,1,0,1,0,1,1,1,1,1],
+            [1,0,0,0,0,0,1,0,1,0,0,0,1],
+            [1,0,1,1,1,1,1,0,1,0,1,0,1],
+            [1,0,1,0,0,0,0,0,0,0,1,0,1],
+            [1,0,1,0,1,1,1,1,1,0,1,0,1],
+            [1,0,0,0,0,0,0,0,0,0,0,0,1],
+            [1,1,1,1,1,1,1,1,1,1,1,1,1]
+        ];
+        
+        const COIN_GRID = [
+            [1,1], [11,1], [5,3], [1,5], [11,5], [5,7], [1,9], [11,9], [6,11], [3,11]
+        ];
+
+        // ===== STATE =====
+        let playerEl, cameraEl;
+        let px = -20, py = 1.6, pz = -20;
+        let vy = 0;
+        let onGround = true;
+        let running = false;
+        let moveForward = 0;
+        let moveRight = 0;
+        let coins = [];
+        let collected = 0;
+        let gameTime = LEVEL_TIME;
+        let timerInterval = null;
+        let gameOver = false;
+        let guideArrowEl = null;
+        let joystickActive = false;
+        let joystickX = 0;
+        let joystickY = 0;
+
+        // ===== UTILS =====
+        function gridToWorld(gx, gz) {
+            return { x: gx * TILE - CENTER, z: gz * TILE - CENTER };
+        }
+
+        function isWall(x, z) {
+            let gx = Math.round((x + CENTER) / TILE);
+            let gz = Math.round((z + CENTER) / TILE);
+            if (gx < 0 || gx >= GRID || gz < 0 || gz >= GRID) return true;
+            return MAP[gz][gx] === 1;
+        }
+
+        // ===== BUILD MAZE =====
+        function buildMaze() {
+            const container = document.getElementById('walls');
+            for (let gz = 0; gz < GRID; gz++) {
+                for (let gx = 0; gx < GRID; gx++) {
+                    if (MAP[gz][gx] === 1) {
+                        let pos = gridToWorld(gx, gz);
+                        
+                        let wall = document.createElement('a-box');
+                        wall.setAttribute('position', pos.x + ' 1.5 ' + pos.z);
+                        wall.setAttribute('width', TILE);
+                        wall.setAttribute('height', 3);
+                        wall.setAttribute('depth', TILE);
+                        wall.setAttribute('color', '#1a1a2e');
+                        wall.setAttribute('material', 'metalness: 0.7; roughness: 0.3; emissive: #0f0f23; emissiveIntensity: 0.1');
+                        container.appendChild(wall);
+                        
+                        let neonTop = document.createElement('a-box');
+                        neonTop.setAttribute('position', pos.x + ' 3.05 ' + pos.z);
+                        neonTop.setAttribute('width', TILE + 0.1);
+                        neonTop.setAttribute('height', 0.1);
+                        neonTop.setAttribute('depth', TILE + 0.1);
+                        neonTop.setAttribute('color', '#ffcc00');
+                        neonTop.setAttribute('material', 'emissive: #ffcc00; emissiveIntensity: 0.8; metalness: 1; roughness: 0');
+                        container.appendChild(neonTop);
+                        
+                        if ((gx + gz) % 3 === 0) {
+                            let neonLine = document.createElement('a-cylinder');
+                            neonLine.setAttribute('position', pos.x + ' 1.5 ' + pos.z);
+                            neonLine.setAttribute('radius', '0.05');
+                            neonLine.setAttribute('height', '3');
+                            neonLine.setAttribute('color', '#ff9900');
+                            neonLine.setAttribute('material', 'emissive: #ff9900; emissiveIntensity: 1');
+                            container.appendChild(neonLine);
+                        }
+                    }
+                }
+            }
+        }
+
+        // ===== BUILD COINS =====
+        function buildCoins() {
+            const container = document.getElementById('coinsEntity');
+            COIN_GRID.forEach((c, i) => {
+                let gx = c[0], gz = c[1];
+                if (MAP[gz][gx] === 0) {
+                    let pos = gridToWorld(gx, gz);
+                    
+                    let coin = document.createElement('a-cylinder');
+                    coin.setAttribute('id', 'coin' + i);
+                    coin.setAttribute('position', pos.x + ' 1.2 ' + pos.z);
+                    coin.setAttribute('radius', '0.5');
+                    coin.setAttribute('height', '0.15');
+                    coin.setAttribute('color', '#ffcc00');
+                    coin.setAttribute('rotation', '90 0 0');
+                    coin.setAttribute('material', 'metalness: 1; roughness: 0; emissive: #ffcc00; emissiveIntensity: 0.8');
+                    container.appendChild(coin);
+                    
+                    let ring = document.createElement('a-torus');
+                    ring.setAttribute('id', 'ring' + i);
+                    ring.setAttribute('position', pos.x + ' 1.2 ' + pos.z);
+                    ring.setAttribute('radius', '0.6');
+                    ring.setAttribute('radius-tubular', '0.03');
+                    ring.setAttribute('color', '#ff9900');
+                    ring.setAttribute('rotation', '90 0 0');
+                    ring.setAttribute('material', 'emissive: #ff9900; emissiveIntensity: 1');
+                    container.appendChild(ring);
+                    
+                    coins.push({ x: pos.x, z: pos.z, taken: false });
+                }
+            });
+            document.getElementById('total').textContent = coins.length;
+        }
+
+        // ===== INPUT =====
+        function setupInput() {
+            document.addEventListener('keydown', function(e) {
+                if (e.code === 'KeyW' || e.code === 'ArrowUp') moveForward = -1;
+                if (e.code === 'KeyS' || e.code === 'ArrowDown') moveForward = 1;
+                if (e.code === 'KeyA' || e.code === 'ArrowLeft') moveRight = 1;
+                if (e.code === 'KeyD' || e.code === 'ArrowRight') moveRight = -1;
+                if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') running = true;
+                
+                if (e.code === 'Space' && onGround) {
+                    vy = 8;
+                    onGround = false;
+                    e.preventDefault();
+                }
+            });
+            
+            document.addEventListener('keyup', function(e) {
+                if (e.code === 'KeyW' || e.code === 'ArrowUp') moveForward = 0;
+                if (e.code === 'KeyS' || e.code === 'ArrowDown') moveForward = 0;
+                if (e.code === 'KeyA' || e.code === 'ArrowLeft') moveRight = 0;
+                if (e.code === 'KeyD' || e.code === 'ArrowRight') moveRight = 0;
+                if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') running = false;
+            });
+        }
+
+        // ===== MOBILE CONTROLS =====
+        function setupMobileControls() {
+            const joystickBase = document.getElementById('joystickBase');
+            const joystickStick = document.getElementById('joystickStick');
+            const btnJump = document.getElementById('btnJump');
+            const btnRun = document.getElementById('btnRun');
+            
+            if (!joystickBase) return;
+            
+            const baseRect = joystickBase.getBoundingClientRect();
+            const centerX = baseRect.width / 2;
+            const centerY = baseRect.height / 2;
+            const maxDist = baseRect.width / 2 - 30;
+
+            function handleJoystickMove(clientX, clientY) {
+                const rect = joystickBase.getBoundingClientRect();
+                let dx = clientX - rect.left - centerX;
+                let dy = clientY - rect.top - centerY;
+                
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist > maxDist) {
+                    dx = (dx / dist) * maxDist;
+                    dy = (dy / dist) * maxDist;
+                }
+                
+                joystickStick.style.transform = 'translate(calc(-50% + ' + dx + 'px), calc(-50% + ' + dy + 'px))';
+                
+                joystickX = dx / maxDist;
+                joystickY = dy / maxDist;
+                
+                moveForward = joystickY;
+                moveRight = -joystickX;
+            }
+
+            function resetJoystick() {
+                joystickStick.style.transform = 'translate(-50%, -50%)';
+                joystickX = 0;
+                joystickY = 0;
+                moveForward = 0;
+                moveRight = 0;
+                joystickActive = false;
+            }
+
+            joystickBase.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+                joystickActive = true;
+                const touch = e.touches[0];
+                handleJoystickMove(touch.clientX, touch.clientY);
+            });
+
+            joystickBase.addEventListener('touchmove', function(e) {
+                e.preventDefault();
+                if (joystickActive) {
+                    const touch = e.touches[0];
+                    handleJoystickMove(touch.clientX, touch.clientY);
+                }
+            });
+
+            joystickBase.addEventListener('touchend', function(e) {
+                e.preventDefault();
+                resetJoystick();
+            });
+
+            joystickBase.addEventListener('touchcancel', function(e) {
+                resetJoystick();
+            });
+
+            joystickBase.addEventListener('mousedown', function(e) {
+                joystickActive = true;
+                handleJoystickMove(e.clientX, e.clientY);
+            });
+
+            document.addEventListener('mousemove', function(e) {
+                if (joystickActive) {
+                    handleJoystickMove(e.clientX, e.clientY);
+                }
+            });
+
+            document.addEventListener('mouseup', function() {
+                if (joystickActive) {
+                    resetJoystick();
+                }
+            });
+
+            btnJump.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+                if (onGround) {
+                    vy = 8;
+                    onGround = false;
+                }
+                btnJump.classList.add('active');
+            });
+
+            btnJump.addEventListener('touchend', function(e) {
+                e.preventDefault();
+                btnJump.classList.remove('active');
+            });
+
+            btnJump.addEventListener('mousedown', function(e) {
+                if (onGround) {
+                    vy = 8;
+                    onGround = false;
+                }
+                btnJump.classList.add('active');
+            });
+
+            btnJump.addEventListener('mouseup', function() {
+                btnJump.classList.remove('active');
+            });
+
+            btnRun.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+                running = true;
+                btnRun.classList.add('active');
+            });
+
+            btnRun.addEventListener('touchend', function(e) {
+                e.preventDefault();
+                running = false;
+                btnRun.classList.remove('active');
+            });
+
+            btnRun.addEventListener('mousedown', function(e) {
+                running = true;
+                btnRun.classList.add('active');
+            });
+
+            btnRun.addEventListener('mouseup', function() {
+                running = false;
+                btnRun.classList.remove('active');
+            });
+        }
+
+        // ===== TIMER =====
+        function formatTime(seconds) {
+            let mins = Math.floor(seconds / 60);
+            let secs = seconds % 60;
+            return mins + ':' + (secs < 10 ? '0' : '') + secs;
+        }
+
+        function updateTimer() {
+            if (gameOver) return;
+            
+            gameTime--;
+            document.getElementById('timerDisplay').textContent = formatTime(gameTime);
+            
+            let timerEl = document.getElementById('timer');
+            
+            if (gameTime <= 60) {
+                timerEl.className = 'ui timer critical';
+            } else if (gameTime <= 120) {
+                timerEl.className = 'ui timer warning';
+                if (guideArrowEl) {
+                    guideArrowEl.setAttribute('visible', 'true');
+                }
+            }
+            
+            if (gameTime <= 0) {
+                gameOver = true;
+                document.getElementById('lose').style.display = 'block';
+            }
+        }
+
+        // ===== GUIDE ARROW =====
+        function updateGuideArrow() {
+            if (!guideArrowEl || gameOver) return;
+            
+            let nearestCoin = null;
+            let nearestDist = Infinity;
+            
+            for (let i = 0; i < coins.length; i++) {
+                let c = coins[i];
+                if (!c.taken) {
+                    let dist = Math.sqrt((px - c.x) * (px - c.x) + (pz - c.z) * (pz - c.z));
+                    if (dist < nearestDist) {
+                        nearestDist = dist;
+                        nearestCoin = c;
+                    }
+                }
+            }
+            
+            if (nearestCoin) {
+                guideArrowEl.setAttribute('position', px + ' ' + (py + 1) + ' ' + pz);
+                
+                let dx = nearestCoin.x - px;
+                let dz = nearestCoin.z - pz;
+                let angle = Math.atan2(dx, dz) * (180 / Math.PI);
+                
+                guideArrowEl.setAttribute('rotation', '0 ' + angle + ' 0');
+                
+                let t = Date.now();
+                let floatY = Math.sin(t / 200) * 0.3;
+                guideArrowEl.setAttribute('position', px + ' ' + (py + 1 + floatY) + ' ' + pz);
+            } else {
+                guideArrowEl.setAttribute('visible', 'false');
+            }
+        }
+
+        // ===== GAME LOOP =====
+        function gameLoop() {
+            let dir = new THREE.Vector3();
+            cameraEl.object3D.getWorldDirection(dir);
+            dir.y = 0;
+            dir.normalize();
+            
+            let right = new THREE.Vector3(-dir.z, 0, dir.x);
+            
+            let speed = running ? 5 : 2.5;
+            
+            let dx = 0, dz = 0;
+            
+            dx += dir.x * moveForward * speed;
+            dz += dir.z * moveForward * speed;
+            
+            dx += right.x * moveRight * speed;
+            dz += right.z * moveRight * speed;
+            
+            let newX = px + dx * 0.016;
+            if (!isWall(newX, pz)) {
+                px = newX;
+            }
+            
+            let newZ = pz + dz * 0.016;
+            if (!isWall(px, newZ)) {
+                pz = newZ;
+            }
+            
+            vy -= 20 * 0.016;
+            py += vy * 0.016;
+            
+            if (py <= 1.6) {
+                py = 1.6;
+                vy = 0;
+                onGround = true;
+            }
+            
+            playerEl.setAttribute('position', px + ' ' + py + ' ' + pz);
+            
+            for (let i = 0; i < coins.length; i++) {
+                let c = coins[i];
+                if (!c.taken) {
+                    let dist = Math.sqrt((px - c.x) * (px - c.x) + (pz - c.z) * (pz - c.z));
+                    if (dist < 1.5) {
+                        c.taken = true;
+                        let el = document.getElementById('coin' + i);
+                        if (el) el.setAttribute('visible', 'false');
+                        let ring = document.getElementById('ring' + i);
+                        if (ring) ring.setAttribute('visible', 'false');
+                        collected++;
+                        document.getElementById('coins').textContent = collected;
+                        
+                        if (collected >= coins.length) {
+                            document.getElementById('win').style.display = 'block';
+                        }
+                    }
+                }
+            }
+            
+            let euler = new THREE.Euler().setFromQuaternion(cameraEl.object3D.quaternion, 'YXZ');
+            let yaw = THREE.MathUtils.radToDeg(euler.y);
+            yaw = ((yaw % 360) + 360) % 360;
+            
+            document.getElementById('brujulaInner').style.transform = 'translate(-50%, -50%) rotate(' + (-yaw) + 'deg)';
+            
+            let dirs = ['Norte', 'Noreste', 'Este', 'Sureste', 'Sur', 'Suroeste', 'Oeste', 'Noroeste'];
+            document.getElementById('dirLabel').textContent = dirs[Math.round(yaw / 45) % 8];
+            
+            let t = Date.now();
+            for (let i = 0; i < coins.length; i++) {
+                let c = coins[i];
+                if (!c.taken) {
+                    let el = document.getElementById('coin' + i);
+                    if (el) {
+                        let bounce = Math.sin(t / 300 + i) * 0.2;
+                        el.setAttribute('position', c.x + ' ' + (1.2 + bounce) + ' ' + c.z);
+                        el.setAttribute('rotation', '90 ' + (t / 10) + ' 0');
+                    }
+                }
+            }
+            
+            updateGuideArrow();
+        }
+
+        // ===== INIT =====
+        function init() {
+            playerEl = document.getElementById('player');
+            cameraEl = document.getElementById('camera');
+            guideArrowEl = document.getElementById('guideArrow');
+            
+            buildMaze();
+            buildCoins();
+            setupInput();
+            setupMobileControls();
+            
+            timerInterval = setInterval(updateTimer, 1000);
+            
+            setInterval(gameLoop, 16);
+        }
+
+        document.querySelector('a-scene').addEventListener('loaded', init);
+    </script>
+</body>
+</html>
+</task_progress>
+- [x] Leer el archivo index.html actual para ver el laberinto del nivel 1
+- [x] Crear carpeta NIVELES
+- [x] Guardar nivel 1 en la carpeta NIVELES
+- [ ] Crear nivel 2 (más difícil)
+- [ ] Crear nivel 3 (más difícil)
+- [ ] Crear nivel 4 (más difícil)
+- [ ] Actualizar index.html principal para seleccionar niveles
+</task_progress>
+</write_to_file>
