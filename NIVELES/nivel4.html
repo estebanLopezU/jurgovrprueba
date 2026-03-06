@@ -171,6 +171,7 @@
 
         // ===== STATE =====
         let playerEl, cameraEl;
+        // Spawn en posición válida del laberinto (celda 1,1)
         let px = 0, py = 1.6, pz = 0;
         let vy = 0;
         let onGround = true;
@@ -586,6 +587,12 @@
             playerEl = document.getElementById('player');
             cameraEl = document.getElementById('camera');
             guideArrowEl = document.getElementById('guideArrow');
+            
+            // Establecer spawn en posición válida (celda 1,1 es un pasillo)
+            let spawnPos = gridToWorld(1, 1);
+            px = spawnPos.x;
+            pz = spawnPos.z;
+            playerEl.setAttribute('position', px + ' ' + py + ' ' + pz);
             
             buildMaze();
             buildCoins();
